@@ -1,7 +1,18 @@
+# backend/main.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="CCUS Traceability API")
+
+# Allow the front-end to call this API in the browser
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # (Optional) later, restrict to your front-end domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dummy in-memory database
 batches = [
@@ -10,23 +21,19 @@ batches = [
     {"batch_id": 3, "status": "verified", "carbon_credits": 150, "digital_passport": "CP-3-2025"}
 ]
 
-# Pydantic model for input validation
 class Batch(BaseModel):
     batch_id: int
     status: str
     carbon_credits: int
 
-# Root endpoint
 @app.get("/")
 def read_root():
     return {"message": "CCUS Traceability Backend Running"}
 
-# List all batches
 @app.get("/batches")
 def list_batches():
     return batches
 
-# Get traceability info for a single batch
 @app.get("/traceability/{batch_id}")
 def get_trace(batch_id: int):
     batch = next((b for b in batches if b["batch_id"] == batch_id), None)
@@ -34,13 +41,10 @@ def get_trace(batch_id: int):
         return batch
     raise HTTPException(status_code=404, detail="Batch not found")
 
-# Add a new batch
 @app.post("/batches")
 def add_batch(batch: Batch):
-    # Check if batch_id already exists
     if any(b["batch_id"] == batch.batch_id for b in batches):
         raise HTTPException(status_code=400, detail="Batch ID already exists")
-    
     new_batch = {
         "batch_id": batch.batch_id,
         "status": batch.status,
